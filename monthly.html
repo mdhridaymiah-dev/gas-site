@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="bn"><head><script>try{document.documentElement.dataset.theme=localStorage.getItem("theme")||"light"}catch{}</script><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>মাসিক রিপোর্ট — GasSite</title>
+<link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;600;700&family=Fraunces:opsz,wght@9..144,800&display=swap" rel="stylesheet">
+<style>:root{--bg:#f5f7ff;--ink:#14202a;--mute:#66727c;--card:#fff;--line:#e3e8f5;--flame:#4f46e5}
+:root[data-theme=dark]{--bg:#0e161c;--ink:#e9eff3;--mute:#8d9ba6;--card:#15212a;--line:#26363f;--flame:#6aa3ff}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.65 "Hind Siliguri",system-ui,sans-serif;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+.w{max-width:760px;margin:0 auto;padding:20px 16px 60px}a{color:var(--flame)}h1{font:800 2rem/1.2 Fraunces,Georgia,serif}
+.m{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin:12px 0}.m h2{margin:0 0 6px;font-size:1.2rem}
+.g{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}.g b{display:block;font:800 1.5rem Fraunces,Georgia,serif;color:var(--flame)}.g span{font-size:.85rem;color:var(--mute)}</style></head>
+<body><div class="w"><a href="/">← GasSite</a><h1>মাসিক রিপোর্ট</h1><p style="color:var(--mute)">প্রকাশিত অভিযোগ থেকে মাসভিত্তিক সারাংশ। সব তথ্য অযাচাইকৃত।</p><div id="o">লোড হচ্ছে…</div></div>
+<script>
+const bn=n=>String(n).replace(/\d/g,d=>"০১২৩৪৫৬৭৮৯"[d]),el=(t,c,x)=>{const e=document.createElement(t);if(c)e.className=c;if(x!==undefined)e.textContent=x;return e};
+const top=(a,f)=>{const c={};a.forEach(r=>{const k=f(r);if(k)c[k]=(c[k]||0)+1});const e=Object.entries(c).sort((x,y)=>y[1]-x[1])[0];return e?e[0]+" ("+bn(e[1])+")":"—"};
+fetch("/api/reports").then(r=>r.json()).then(a=>{
+  const o=document.getElementById("o");o.textContent="";if(!a.length){o.textContent="এখনও কোনো রিপোর্ট নেই।";return}
+  const g={};a.forEach(r=>{(g[r.at.slice(0,7)]=g[r.at.slice(0,7)]||[]).push(r)});
+  Object.keys(g).sort().reverse().forEach(k=>{const rs=g[k],m=el("div","m");
+    m.append(el("h2","",new Date(k+"-01").toLocaleDateString("bn-BD",{month:"long",year:"numeric"})));
+    const gr=el("div","g");[["মোট অভিযোগ",bn(rs.length)],["মোট পরিমাণ","৳"+bn(rs.reduce((s,r)=>s+(r.amount||0),0).toLocaleString("en-US"))],["শীর্ষ বিভাগ",top(rs,r=>r.division)],["শীর্ষ দপ্তর",top(rs,r=>r.office)],["প্রধান সমস্যা",top(rs,r=>r.type)]].forEach(([l,v])=>{const d=el("div");d.append(el("b","",v),el("span","",l));gr.append(d)});
+    m.append(gr);o.append(m)})
+}).catch(()=>document.getElementById("o").textContent="লোড করা যায়নি।");
+</script></body></html>
