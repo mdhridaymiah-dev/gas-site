@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="bn"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="robots" content="noindex"><title>অ্যাডমিন প্যানেল</title>
+<script>try{document.documentElement.dataset.theme=localStorage.getItem("theme")||"light"}catch{}</script><link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f5f7ff;--ink:#0f172a;--mute:#5b6478;--card:#fff;--line:#e3e8f5;--flame:#4f46e5;--pilot:#f97316;--bad:#ef4444}
+:root[data-theme=dark]{--bg:#0b1020;--ink:#eef1ff;--mute:#9aa4c2;--card:#141b34;--line:#27325a;--flame:#8b8bff;--bad:#ff7b6b}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 "Hind Siliguri",system-ui,sans-serif;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+.w{max-width:760px;margin:0 auto;padding:18px 14px 60px}
+h1{margin:6px 0 14px;font-size:1.6rem}h2{font-size:1.1rem;margin:26px 0 10px}
+select,textarea{font:inherit;padding:10px 12px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:inherit;max-width:100%}textarea{width:100%;min-height:80px}
+.row{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}.row input{flex:1;min-width:90px}.sb{margin-top:10px;padding:10px;border:1px dashed var(--line);border-radius:10px}.sb b{display:block;margin-bottom:4px}
+input,button{font:inherit;padding:10px 12px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:inherit}
+button{cursor:pointer;font-weight:600}.ok{background:var(--flame);color:#fff;border-color:var(--flame)}.no{color:var(--bad)}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+@media(max-width:520px){.grid{grid-template-columns:repeat(2,1fr)}}
+.k{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}
+.k strong{display:block;font-size:1.7rem;line-height:1.2;color:var(--flame)}.k:nth-child(2n) strong{color:#f97316}.k:nth-child(3n) strong{color:#10b981}.k span{font-size:.85rem;color:var(--mute)}
+.k.hot{border-color:var(--pilot)}.k.hot strong{color:var(--pilot)}
+.box{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}
+.days{display:flex;align-items:flex-end;gap:8px;height:130px}
+.d{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;font-size:.72rem;color:var(--mute)}
+.d i{display:block;width:100%;background:var(--flame);border-radius:4px 4px 0 0;min-height:2px}.d b{color:var(--ink);font-weight:600}
+.leg{font-size:.8rem;color:var(--mute);margin-top:8px}
+.bar{display:grid;grid-template-columns:90px 1fr 30px;gap:8px;align-items:center;font-size:.9rem;margin:5px 0}
+.bar i{display:block;height:10px;background:var(--pilot);border-radius:5px}
+.tabs{display:flex;gap:8px;margin:26px 0 10px}.tabs button.on{background:var(--ink);color:var(--bg)}
+.i{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--pilot);border-radius:10px;padding:12px;margin-bottom:10px}
+.i small{display:block;color:var(--mute)}.i p{margin:6px 0 10px;white-space:pre-wrap;overflow-wrap:anywhere}
+.c{color:var(--flame);font-weight:600}
+</style><script>
+// অভিযোগ থেকে রঙিন ফেসবুক-পোস্ট কার্ড (ছবি) ও ক্যাপশন বানায়। ব্রাউজারেই আঁকে, তাই বাংলা যুক্তাক্ষর ঠিক থাকে।
+(function () {
+  const OUT = { resolved: ["সমাধান হয়েছে", "#10b981"], unresolved: ["সমাধান হয়নি", "#ef4444"], pending: ["অপেক্ষমাণ", "#f59e0b"] };
+  const bn = (n) => String(n).replace(/\d/g, (d) => "০১২৩৪৫৬৭৮৯"[d]);
+  const money = (n) => "৳" + bn(Number(n).toLocaleString("en-US"));
+  const F = '"Hind Siliguri","Noto Sans Bengali",system-ui,sans-serif';
+
+  // ঠিকানার অংশ ভেঙে, ফাঁকা ও পুনরাবৃত্তি বাদ দিয়ে একবারই জোড়া লাগায়
+  const addrParts = (r) => {
+    const seen = new Set(), out = [];
+    [r.area, r.union, r.upazila, r.district, r.division].forEach((v) =>
+      String(v || "").split(/[,،]/).map((s) => s.trim()).filter(Boolean).forEach((p) => {
+        if (!seen.has(p)) { seen.add(p); out.push(p); }
+      }));
+    return out.join(", ");
+  };
+  function wrap(ctx, text, max, maxLines) {
+    const words = String(text || "").replace(/\s+/g, " ").trim().split(" "), lines = [];
+    let line = "";
+    for (const w of words) {
+      const t = line ? line + " " + w : w;
+      if (ctx.measureText(t).width > max && line) { lines.push(line); line = w; } else line = t;
+    }
+    if (line) lines.push(line);
+    if (lines.length > maxLines) {
+      lines.length = maxLines;
+      let l = lines[maxLines - 1];
+      while (l.length && ctx.measureText(l + "…").width > max) l = l.slice(0, -1);
+      lines[maxLines - 1] = l + "…";
+    }
+    return lines;
+  }
+  function rr(x, px, py, w, h, r, fill) { x.fillStyle = fill; x.beginPath(); x.roundRect(px, py, w, h, r); x.fill(); }
+  function pill(x, px, py, text, bg, fg) {
+    x.font = "700 34px " + F;
+    const w = x.measureText(text).width + 52;
+    rr(x, px, py, w, 62, 31, bg);
+    x.fillStyle = fg; x.fillText(text, px + 26, py + 43);
+    return w;
+  }
+
+  async function makeCard(r) {
+    try { await document.fonts.load('700 40px "Hind Siliguri"'); await document.fonts.load('400 40px "Hind Siliguri"'); } catch {}
+    const W = 1080, H = 1350, c = document.createElement("canvas");
+    c.width = W; c.height = H;
+    const x = c.getContext("2d");
+    // রঙিন ব্যাকগ্রাউন্ড
+    const g = x.createLinearGradient(0, 0, W, H);
+    g.addColorStop(0, "#2563eb"); g.addColorStop(0.55, "#7c3aed"); g.addColorStop(1, "#ec4899");
+    x.fillStyle = g; x.fillRect(0, 0, W, H);
+    const o1 = x.createRadialGradient(W - 40, 60, 10, W - 40, 60, 460);
+    o1.addColorStop(0, "rgba(249,115,22,.85)"); o1.addColorStop(1, "rgba(249,115,22,0)");
+    x.fillStyle = o1; x.fillRect(0, 0, W, H);
+    const o2 = x.createRadialGradient(40, H - 40, 10, 40, H - 40, 420);
+    o2.addColorStop(0, "rgba(6,182,212,.75)"); o2.addColorStop(1, "rgba(6,182,212,0)");
+    x.fillStyle = o2; x.fillRect(0, 0, W, H);
+    x.textBaseline = "alphabetic";
+
+    // হেডার
+    x.fillStyle = "#fff"; x.font = "800 60px " + F; x.fillText("🔥 GasSite", 60, 110);
+    x.fillStyle = "rgba(255,255,255,.9)"; x.font = "500 32px " + F; x.fillText("গ্যাস অভিযোগের পাবলিক খাতা", 60, 162);
+
+    // সাদা প্যানেল
+    const PX = 40, PY = 210, PW = 1000, PH = 930;
+    x.save(); x.shadowColor = "rgba(15,23,42,.35)"; x.shadowBlur = 40; x.shadowOffsetY = 16;
+    rr(x, PX, PY, PW, PH, 48, "#ffffff"); x.restore();
+    const grad = x.createLinearGradient(PX, 0, PX + PW, 0); grad.addColorStop(0, "#f97316"); grad.addColorStop(1, "#ec4899");
+    x.fillStyle = grad; x.beginPath(); x.roundRect(PX, PY, PW, 14, [48, 48, 0, 0]); x.fill();
+
+    const X0 = 90, MW = 900;
+    // ঠিকানা
+    x.fillStyle = "#4f46e5"; x.font = "700 40px " + F;
+    const loc = wrap(x, "📍 " + addrParts(r), MW, 3);
+    let y = PY + 90;
+    loc.forEach((l) => { x.fillText(l, X0, y); y += 54; });
+    if (r.postOffice) { x.fillStyle = "#64748b"; x.font = "500 34px " + F; x.fillText("📮 ডাকঘর: " + r.postOffice + (r.postCode ? " (" + r.postCode + ")" : ""), X0, y); y += 50; }
+
+    // শিরোনাম
+    x.fillStyle = "#0f172a"; x.font = "800 74px " + F;
+    y += 38;
+    wrap(x, r.type || "অন্যান্য", MW, 2).forEach((l) => { x.fillText(l, X0, y); y += 90; });
+
+    // টাকার পরিমাণ
+    if (r.amount) {
+      x.fillStyle = "#f97316"; x.font = "800 84px " + F; x.fillText(money(r.amount), X0, y + 8);
+      y += 70;
+    }
+
+    // বিবরণ
+    x.fillStyle = "#334155"; x.font = "400 42px " + F;
+    y += 14;
+    const limit = PY + PH - 230;
+    const room = Math.floor((limit - y) / 60);
+    wrap(x, "“" + (r.text || "") + "”", MW, Math.max(2, Math.min(9, room))).forEach((l) => { x.fillText(l, X0, y); y += 60; });
+
+    // পিল ও নাম
+    const [oname, ocol] = OUT[r.outcome] || OUT.pending;
+    let fx = X0; const fy = PY + PH - 190;
+    fx += pill(x, fx, fy, oname, ocol, "#fff") + 14;
+    if (r.office) pill(x, fx, fy, r.office, "#eef2ff", "#4338ca");
+    x.fillStyle = "#64748b"; x.font = "500 32px " + F;
+    x.fillText((r.name || "বেনামী") + " · " + new Date(r.at).toLocaleDateString("bn-BD") + (r.conf ? " · 👥 " + bn(r.conf) + " জন একমত" : ""), X0, fy + 118);
+
+    // ফুটার
+    x.fillStyle = "#fff"; x.font = "700 40px " + F;
+    x.fillText("আপনার এলাকাতেও একই সমস্যা? জানান 👇", 60, H - 112);
+    rr(x, 60, H - 90, 960, 62, 31, "rgba(255,255,255,.95)");
+    x.fillStyle = "#4f46e5"; x.font = "800 38px " + F; x.fillText(location.host, 90, H - 46);
+    return c;
+  }
+
+  function caption(r) {
+    const tags = ["#গ্যাসসংকট", "#" + String(r.division || "").replace(/\s/g, ""), "#গ্যাসসাইট", "#বাংলাদেশ"];
+    const lines = [
+      "🔥 গ্যাস অভিযোগ",
+      "📍 " + addrParts(r),
+      (r.type || "") + (r.office ? " — " + r.office : ""),
+    ];
+    if (r.postOffice) lines.push("📮 ডাকঘর: " + r.postOffice + (r.postCode ? " (" + r.postCode + ")" : ""));
+    lines.push("", String(r.text || "").slice(0, 400));
+    if (r.amount) lines.push("", "রিপোর্ট করা পরিমাণ: " + money(r.amount));
+    lines.push("অবস্থা: " + (OUT[r.outcome] || OUT.pending)[0], "",
+      "আপনার এলাকাতেও একই সমস্যা? নাম গোপন রেখে জানান: " + location.origin, tags.join(" "));
+    return lines.join("\n");
+  }
+
+  function modal() {
+    const o = document.createElement("div");
+    o.style.cssText = "position:fixed;inset:0;z-index:99;background:rgba(15,23,42,.7);display:flex;align-items:flex-start;justify-content:center;overflow:auto;padding:16px";
+    const b = document.createElement("div");
+    b.style.cssText = "background:#fff;color:#0f172a;border-radius:20px;padding:14px;max-width:460px;width:100%;font-family:" + F;
+    o.append(b); o.onclick = (e) => e.target === o && o.remove();
+    const msg = document.createElement("p"); msg.textContent = "কার্ড বানানো হচ্ছে…"; b.append(msg);
+    document.body.append(o);
+    return b;
+  }
+
+  async function shareCard(r0) {
+    const b = modal();
+    // ডাকঘর স্বয়ংক্রিয় আসবে না; অ্যাডমিন নিজে টাইপ করবে
+    const r = Object.assign({}, r0, { postOffice: "", postCode: "" });
+    const po = document.createElement("input"); po.type = "text"; po.maxLength = 80;
+    po.placeholder = "📮 ডাকঘর নিজে লিখুন (ফাঁকা থাকলে কার্ডে আসবে না)";
+    po.style.cssText = "width:100%;padding:10px 12px;border:1px solid #cbd5e1;border-radius:10px;font:500 16px " + F + ";margin-bottom:10px";
+    let c = await makeCard(r), cap = caption(r);
+    let blob = await new Promise((res) => c.toBlob(res, "image/png"));
+    let file = new File([blob], "gas-ovijog-" + r.id + ".png", { type: "image/png" });
+    b.textContent = "";
+    b.append(po);
+    const img = new Image(); img.src = c.toDataURL("image/png"); img.style.cssText = "width:100%;border-radius:14px;display:block;margin-bottom:10px";
+    b.append(img);
+    let t;
+    po.oninput = () => { clearTimeout(t); t = setTimeout(async () => {
+      r.postOffice = po.value.trim();
+      c = await makeCard(r); cap = caption(r);
+      blob = await new Promise((res) => c.toBlob(res, "image/png"));
+      file = new File([blob], "gas-ovijog-" + r.id + ".png", { type: "image/png" });
+      img.src = c.toDataURL("image/png");
+    }, 350); };
+    const btn = (t, f, bg) => {
+      const e = document.createElement("button"); e.textContent = t; e.onclick = f;
+      e.style.cssText = "display:block;width:100%;margin:6px 0;padding:12px;border-radius:999px;font:700 16px " + F + ";cursor:pointer;border:2px solid #4f46e5;" + (bg ? "background:" + bg + ";color:#fff;border-color:transparent" : "background:#fff;color:#4f46e5");
+      b.append(e); return e;
+    };
+    const can = navigator.canShare && navigator.canShare({ files: [file] });
+    if (can) btn("📤 ফেসবুক/অ্যাপে শেয়ার (ছবিসহ)", () => navigator.share({ files: [file], text: cap }).catch(() => {}), "linear-gradient(135deg,#4f46e5,#7c3aed)");
+    btn("⬇ ছবি ডাউনলোড", () => { const a = document.createElement("a"); a.href = img.src; a.download = file.name; a.click(); }, can ? "" : "linear-gradient(135deg,#4f46e5,#7c3aed)");
+    const cp = btn("📋 ক্যাপশন কপি", async () => { try { await navigator.clipboard.writeText(cap); cp.textContent = "✓ কপি হয়েছে"; } catch { prompt("কপি করুন:", cap); } });
+    btn("f ফেসবুকে লিংক শেয়ার", () => window.open("https://www.facebook.com/sharer/sharer.php?u=" + encodeURIComponent(location.origin), "_blank"));
+    const p = document.createElement("p"); p.style.cssText = "font-size:13px;color:#64748b;margin:8px 0 0";
+    p.textContent = "টিপ: ফেসবুক অ্যাপ ছবির সাথে ক্যাপশন নিজে বসায় না, তাই আগে ক্যাপশন কপি করে নিন, তারপর ছবি শেয়ার করে পেস্ট করুন।";
+    b.append(p);
+    btn("বন্ধ করুন", () => b.parentElement.remove());
+  }
+  window.shareCard = shareCard; window.makeCard = makeCard; window.cardCaption = caption;
+})();
+
+</script></head>
+<body><div class="w">
+<h1 style="background:linear-gradient(90deg,#4f46e5,#ec4899);-webkit-background-clip:text;background-clip:text;color:transparent">অ্যাডমিন প্যানেল</h1>
+<p><input id="k" type="password" placeholder="ADMIN_KEY"> <button class="ok" id="b">খুলুন</button></p>
+<div id="out" hidden>
+  <div class="grid" id="kpi"></div>
+  <h2>গত ৭ দিনের ভিজিটর</h2><div class="box"><div class="days" id="days"></div><div class="leg">বার = ইউনিক ভিজিটর · নিচের সংখ্যা = পেজ ভিউ</div></div>
+  <h2>বিভাগ অনুযায়ী অভিযোগ</h2><div class="box" id="div"></div>
+  <h2>সমস্যার ধরন</h2><div class="box" id="typ"></div>
+  <div class="tabs"><button id="t1" class="on"></button><button id="t2"></button><button id="t3">সাইট ব্যবস্থাপনা</button></div>
+  <div id="list"></div>
+</div></div>
+<script>
+const $=s=>document.querySelector(s),bn=n=>String(n).replace(/\d/g,d=>"০১২৩৪৫৬৭৮৯"[d]);
+let D=null,tab=1;
+const el=(t,c,x)=>{const e=document.createElement(t);if(c)e.className=c;if(x!==undefined)e.textContent=x;return e};
+const key=()=>$("#k").value;
+async function act(id,action){await fetch("/api/admin",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({key:key(),id,action})});load()}
+function bars(box,obj){box.textContent="";const a=Object.entries(obj).sort((x,y)=>y[1]-x[1]);if(!a.length){box.textContent="এখনও তথ্য নেই";return}
+  const m=a[0][1];a.forEach(([k,n])=>{const r=el("div","bar");const b=el("div");const i=el("i");i.style.width=(n/m*100)+"%";b.append(i);r.append(el("span","",k),b,el("b","",bn(n)));box.append(r)})}
+function items(){
+  const l=$("#list");l.textContent="";if(tab===3){sitePanel(l);return}const a=tab===1?D.pending:D.published;
+  if(!a.length){l.textContent=tab===1?"কিছু অপেক্ষমাণ নেই।":"এখনও কিছু প্রকাশিত হয়নি।";return}
+  a.forEach(i0=>{const i=Object.assign({},i0,(S.edits||{})[i0.id]||{});const d=el("div","i");
+    d.append(el("small","",[i.division,i.district,i.upazila,i.union,i.postOffice&&"📮 "+i.postOffice+(i.postCode?" ("+i.postCode+")":""),i.area,i.office,i.type,i.amount?"৳"+i.amount:"",i.name||"বেনামী",new Date(i.at).toLocaleString("bn-BD")].filter(Boolean).join(" · ")));
+    if(i.contact)d.append(el("small","c","যোগাযোগ (গোপন): "+i.contact));
+    d.append(el("p","",i.text));
+    if(tab===1){const a1=el("button","ok","প্রকাশ");a1.onclick=()=>act(i.id,"approve");const a2=el("button","no","বাদ");a2.onclick=()=>act(i.id,"reject");d.append(a1," ",a2)}
+    else{const x=el("button","no","মুছুন");x.onclick=()=>confirm("মুছে ফেলবেন?")&&act(i.id,"delete");d.append(x)}
+    const cb=el("button","","🖼 পোস্ট কার্ড");cb.onclick=()=>shareCard(i);d.append(" ",cb);if(tab===2)d.append(statusBox(i));d.append(editBox(i));l.append(d)})}
+function draw(){
+  const s=D.stats;
+  const k=[["মোট ভিজিটর (ইউনিক)",s.visitors],["আজকের ভিজিটর",s.todayVisitors],["মোট পেজ ভিউ",s.views],
+   ["কতজন অভিযোগ করেছেন",s.complainers,1],["প্রকাশিত অভিযোগ",s.published],["অপেক্ষমাণ",s.pending,s.pending>0]];
+  $("#kpi").textContent="";k.forEach(([t,n,h])=>{const c=el("div","k"+(h?" hot":""));c.append(el("strong","",bn(n)),el("span","",t));$("#kpi").append(c)});
+  const m=Math.max(1,...s.daily.map(d=>d.visitors)),dy=$("#days");dy.textContent="";
+  s.daily.forEach(d=>{const c=el("div","d");c.append(el("b","",bn(d.visitors)));const i=el("i");i.style.height=(d.visitors/m*85)+"%";c.append(i,el("span","",bn(d.views)),el("span","",bn(+d.day.slice(8))));dy.append(c)});
+  bars($("#div"),s.byDivision);bars($("#typ"),s.byType);
+  $("#t1").textContent="অপেক্ষমাণ ("+bn(s.pending)+")";$("#t2").textContent="প্রকাশিত";
+  $("#t3").textContent="সাইট ব্যবস্থাপনা";$("#t1").className=tab===1?"on":"";$("#t2").className=tab===2?"on":"";$("#t3").className=tab===3?"on":"";items();
+}
+let S={};
+const OUTS=[["pending","অপেক্ষমাণ"],["resolved","সমাধান হয়েছে"],["unresolved","সমাধান হয়নি"]];
+const STAGES=[["","— কোনো ধাপ নয় —"],["verified","✔ যাচাইকৃত"],["forwarded","📨 কর্তৃপক্ষকে জানানো হয়েছে"],["inprogress","🛠 ব্যবস্থা নেওয়া হচ্ছে"],["actioned","✅ ব্যবস্থা গৃহীত"]];
+async function siteLoad(){try{const r=await fetch("/api/site",{headers:{"x-admin-key":key()}});S=r.ok?await r.json():{}}catch{S={}}}
+async function sact(body){
+  const r=await fetch("/api/site",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({key:key(),...body})});
+  if(!r.ok){let m="";try{m=(await r.json()).error}catch{}alert("সংরক্ষণ হয়নি: "+(m||r.status));return false}
+  await siteLoad();draw();return true}
+function sel(opts,val){const s=document.createElement("select");opts.forEach(([v,n])=>{const o=el("option","",n);o.value=v;s.append(o)});s.value=val;return s}
+function statusBox(i){
+  const u=(S.status||{})[i.id]||{},b=el("div","sb");b.append(el("b","","অভিযোগের অবস্থা ও ব্যবস্থা (সবাই দেখবে)"));
+  const o=sel(OUTS,u.outcome||i.outcome||"pending"),g=sel(STAGES,u.stage||"");
+  const n=document.createElement("input");n.placeholder="প্রকাশ্য নোট (যেমন: ডিলারকে জরিমানা করা হয়েছে)";n.maxLength=500;n.value=u.note||"";n.style.cssText="width:100%;margin:6px 0";
+  const r1=el("div","row");r1.append(o,g);
+  const sv=el("button","ok","অবস্থা প্রকাশ করুন");sv.onclick=()=>sact({action:"setStatus",id:i.id,outcome:o.value,stage:g.value,note:n.value});
+  b.append(r1,n,sv);
+  if(u.at){const c=el("button","no","রিসেট");c.style.marginLeft="6px";c.onclick=()=>confirm("অবস্থা রিসেট করবেন?")&&sact({action:"clearStatus",id:i.id});b.append(c,el("small","","সর্বশেষ: "+new Date(u.at).toLocaleString("bn-BD")))}
+  return b}
+function editBox(i){
+  const b=el("details","sb");b.append(el("summary","","✏️ ঠিকানা সংশোধন"));
+  const F=[["division","বিভাগ"],["district","জেলা"],["upazila","উপজেলা"],["union","ইউনিয়ন"],["area","এলাকা/গ্রাম"],["postOffice","ডাকঘর"],["postCode","পোস্টকোড"]],inp={};
+  const w=el("div","row");
+  F.forEach(([k,n])=>{const x=document.createElement("input");x.placeholder=n;x.title=n;x.maxLength=120;x.value=i[k]||"";inp[k]=x;w.append(x)});
+  const sv=el("button","ok","ঠিকানা সংরক্ষণ");sv.onclick=()=>sact({action:"setAddress",id:i.id,...Object.fromEntries(F.map(([k])=>[k,inp[k].value]))});
+  b.append(w,sv);
+  if((S.edits||{})[i.id]){const c=el("button","no","মূল ঠিকানায় ফিরুন");c.style.marginLeft="6px";c.onclick=()=>confirm("মূল ঠিকানায় ফিরবেন?")&&sact({action:"clearAddress",id:i.id});b.append(c)}
+  return b}
+function sitePanel(l){
+  // নোটিশ
+  const nb=el("div","box"),N=S.notice||{text:"",level:"info",on:false};
+  nb.append(el("h2","","📢 মেইন সাইটের নোটিশ"));
+  const nt=document.createElement("textarea");nt.maxLength=600;nt.placeholder="সাইটের ওপরে যে নোটিশ দেখাবে";nt.value=N.text||"";
+  const nl=sel([["info","সাধারণ (নীল)"],["warn","সতর্কতা (কমলা)"],["urgent","জরুরি (লাল)"]],N.level||"info");
+  const lab=el("label");const cb=document.createElement("input");cb.type="checkbox";cb.checked=!!N.on;cb.style.margin="0 6px";lab.append(cb,"সাইটে দেখান");
+  const ns=el("button","ok","নোটিশ সংরক্ষণ");ns.onclick=()=>sact({action:"setNotice",text:nt.value,level:nl.value,on:cb.checked});
+  const nr=el("div","row");nr.append(nl,lab,ns);nb.append(nt,nr);l.append(nb);
+  // দাম
+  const pb=el("div","box");pb.style.marginTop="14px";const P=S.prices||{items:[]};
+  pb.append(el("h2","","🛢 গ্যাসের সরকারি বাজারদর"));
+  const rows=el("div");
+  const addRow=(it={})=>{const r=el("div","row");const f=(ph,v,t)=>{const x=document.createElement("input");x.placeholder=ph;x.value=v==null?"":v;if(t)x.type=t;return x};
+    const a=f("ব্র্যান্ড (যেমন: বসুন্ধরা)",it.brand),b=f("সাইজ (১২ কেজি)",it.size),c=f("দাম ৳",it.price,"number"),d=f("নোট (ঐচ্ছিক)",it.note);
+    c.style.maxWidth="110px";const x=el("button","no","✕");x.onclick=()=>r.remove();r.append(a,b,c,d,x);r._g=()=>({brand:a.value,size:b.value,price:c.value,note:d.value});rows.append(r)};
+  (P.items||[]).forEach(addRow);if(!(P.items||[]).length)addRow();
+  const ad=el("button","","+ সারি যোগ");ad.onclick=()=>addRow();
+  const src=document.createElement("input");src.placeholder="সূত্র (যেমন: বিইআরসি আদেশ, ০১/১০/২০২৬)";src.value=P.source||"";src.style.cssText="width:100%;margin:8px 0 4px";
+  const pn=document.createElement("input");pn.placeholder="পরিবর্তন/সংশোধনের নোট (যেমন: দাম ৳৫০ কমেছে)";pn.value=P.note||"";pn.style.cssText="width:100%;margin:4px 0";
+  const ps=el("button","ok","দাম প্রকাশ/সংশোধন করুন");ps.onclick=()=>sact({action:"setPrices",source:src.value,note:pn.value,items:[...rows.children].map(r=>r._g())});
+  pb.append(rows,ad,src,pn,ps);
+  if((P.history||[]).length)pb.append(el("small","","আগের "+bn(P.history.length)+"টি সংস্করণ সংরক্ষিত আছে।"));
+  l.append(pb);
+  // পরামর্শ
+  const vb=el("div","box");vb.style.marginTop="14px";vb.append(el("h2","","💡 পরামর্শ ও জরুরি তথ্য"));
+  const vt=document.createElement("input");vt.placeholder="শিরোনাম";vt.maxLength=120;vt.style.cssText="width:100%;margin-bottom:6px";
+  const vx=document.createElement("textarea");vx.placeholder="পরামর্শ লিখুন";vx.maxLength=1500;
+  const va=el("button","ok","প্রকাশ করুন");va.onclick=()=>sact({action:"addAdvice",title:vt.value,text:vx.value});
+  vb.append(vt,vx,va);
+  (S.advice||[]).forEach(a=>{const d=el("div","i");d.append(el("b","",a.title),el("p","",a.text));const x=el("button","no","মুছুন");x.onclick=()=>confirm("মুছে ফেলবেন?")&&sact({action:"delAdvice",id:a.id});d.append(x);vb.append(d)});
+  l.append(vb)}
+async function load(){
+  const r=await fetch("/api/admin",{headers:{"x-admin-key":key()}});
+  if(!r.ok){alert("ভুল কী বা ডাটাবেস সমস্যা");return}
+  D=await r.json();await siteLoad();$("#out").hidden=false;draw()}
+$("#b").onclick=load;$("#t1").onclick=()=>{tab=1;draw()};$("#t2").onclick=()=>{tab=2;draw()};$("#t3").onclick=()=>{tab=3;draw()};
+</script></body></html>

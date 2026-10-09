@@ -94,17 +94,22 @@ details{background:var(--card);border:1px solid var(--line);border-radius:14px;p
 summary{cursor:pointer;font-weight:700;list-style:none;display:flex;justify-content:space-between;gap:10px}summary::after{content:"+";color:var(--p);font-size:1.3rem;line-height:1}details[open] summary::after{content:"−"}details p{color:var(--mute);margin:8px 0 0}
 .cta{background:linear-gradient(135deg,#2563eb,#7c3aed 55%,#ec4899);color:#fff;text-align:center}.cta h2{max-width:22ch;margin:0 auto 10px}.cta .sub{margin:0 auto 20px;color:#fff;opacity:.9}
 footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom));color:var(--mute);font-size:.88rem}footer .w{display:flex;gap:16px;flex-wrap:wrap;align-items:center}footer b{font:800 1.1rem var(--disp);color:var(--ink);margin-right:auto}
+#notice{padding:12px 16px;font-weight:700;text-align:center;color:#fff;background:#4f46e5}#notice.warn{background:#d97706}#notice.urgent{background:#dc2626}
+.px{width:100%;border-collapse:collapse;background:var(--card,#fff);border-radius:12px;overflow:hidden}.px th,.px td{padding:10px 12px;border-bottom:1px solid rgba(100,116,139,.2);text-align:left}.px .up{color:#dc2626;font-weight:700}.px .dn{color:#059669;font-weight:700}
+.pxw{overflow-x:auto}.advg{display:grid;gap:12px;margin-top:14px}.advc{border:1px solid rgba(100,116,139,.25);border-left:4px solid #f97316;border-radius:12px;padding:12px 14px;background:var(--card,#fff)}.advc h4{margin:0 0 4px}.advc p{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}.advc small{opacity:.7}
+.adm{margin:8px 0;padding:8px 10px;border-radius:10px;background:rgba(79,70,229,.08)}.adm p{margin:4px 0;white-space:pre-wrap;overflow-wrap:anywhere}.adm small{display:block;opacity:.75}
 </style>
 </head>
 <body>
 <div class="strip" data-t="strip"></div>
 <nav><div class="nv">
   <a class="brand" href="/">🔥 GasSite</a>
-  <a class="l" href="#reports" data-t="nReports"></a><a class="l" href="#data" data-t="nData"></a><a class="l" href="/monthly.html" data-t="nMonthly"></a><a class="l" href="/privacy.html" data-t="nPrivacy"></a>
+  <a class="l" href="#reports" data-t="nReports"></a><a class="l" href="#prices">বাজারদর</a><a class="l" href="#data" data-t="nData"></a><a class="l" href="/monthly.html" data-t="nMonthly"></a><a class="l" href="/privacy.html" data-t="nPrivacy"></a>
   <button class="btn o s ib" id="theme" type="button" aria-label="theme">🌙</button>
   <button class="btn o s" id="lang" type="button"></button>
   <a class="btn hot s" href="#report" data-t="nCta"></a>
 </div></nav>
+<div id="notice" hidden></div>
 
 <header class="hero"><div class="w hg">
   <div>
@@ -164,6 +169,14 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom));color:var(--mute)
   </form></div>
 </div></section>
 
+<section id="prices"><div class="w">
+  <h2>🛢 গ্যাসের সরকারি বাজারদর</h2>
+  <p class="sub" id="pxMeta"></p>
+  <div class="pxw" id="pxBox"></div>
+  <h2 style="margin-top:34px" id="advH" hidden>💡 পরামর্শ ও জরুরি তথ্য</h2>
+  <div class="advg" id="advBox"></div>
+</div></section>
+
 <section id="reports" class="alt"><div class="w">
   <span class="pill" data-t="pillLive"></span>
   <h2 data-t="liveTitle"></h2><p class="sub" data-t="liveSub"></p>
@@ -218,6 +231,15 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom));color:var(--mute)
   const money = (n) => "৳" + bn(Number(n).toLocaleString("en-US"));
   const F = '"Hind Siliguri","Noto Sans Bengali",system-ui,sans-serif';
 
+  // ঠিকানার অংশ ভেঙে, ফাঁকা ও পুনরাবৃত্তি বাদ দিয়ে একবারই জোড়া লাগায়
+  const addrParts = (r) => {
+    const seen = new Set(), out = [];
+    [r.area, r.union, r.upazila, r.district, r.division].forEach((v) =>
+      String(v || "").split(/[,،]/).map((s) => s.trim()).filter(Boolean).forEach((p) => {
+        if (!seen.has(p)) { seen.add(p); out.push(p); }
+      }));
+    return out.join(", ");
+  };
   function wrap(ctx, text, max, maxLines) {
     const words = String(text || "").replace(/\s+/g, " ").trim().split(" "), lines = [];
     let line = "";
@@ -274,7 +296,7 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom));color:var(--mute)
     const X0 = 90, MW = 900;
     // ঠিকানা
     x.fillStyle = "#4f46e5"; x.font = "700 40px " + F;
-    const loc = wrap(x, "📍 " + [r.area, r.union, r.upazila, r.district, r.division].filter(Boolean).join(", "), MW, 3);
+    const loc = wrap(x, "📍 " + addrParts(r), MW, 3);
     let y = PY + 90;
     loc.forEach((l) => { x.fillText(l, X0, y); y += 54; });
     if (r.postOffice) { x.fillStyle = "#64748b"; x.font = "500 34px " + F; x.fillText("📮 ডাকঘর: " + r.postOffice + (r.postCode ? " (" + r.postCode + ")" : ""), X0, y); y += 50; }
@@ -317,7 +339,7 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom));color:var(--mute)
     const tags = ["#গ্যাসসংকট", "#" + String(r.division || "").replace(/\s/g, ""), "#গ্যাসসাইট", "#বাংলাদেশ"];
     const lines = [
       "🔥 গ্যাস অভিযোগ",
-      "📍 " + [r.area, r.union, r.upazila, r.district, r.division].filter(Boolean).join(", "),
+      "📍 " + addrParts(r),
       (r.type || "") + (r.office ? " — " + r.office : ""),
     ];
     if (r.postOffice) lines.push("📮 ডাকঘর: " + r.postOffice + (r.postCode ? " (" + r.postCode + ")" : ""));
@@ -490,6 +512,12 @@ function render(){
     if(r.postOffice)c.append(el("div","m","📮 "+t("poLbl")+": "+r.postOffice+(r.postCode?" ("+r.postCode+")":"")));
     if(r.amount)c.append(el("div","amt",tk(r.amount)));
     c.append(el("p","",r.text));
+    if(r.stage||r.adminNote){const ab=el("div","adm");
+      if(r.stage){const sg=el("span","tag",STAGE[r.stage]||r.stage);sg.style.setProperty("--c","#4f46e5");ab.append(sg)}
+      if(r.adminNote)ab.append(el("p","",r.adminNote));
+      if(r.adminAt)ab.append(el("small","","হালনাগাদ: "+date(r.adminAt)));
+      (r.log||[]).slice(0,-1).reverse().slice(0,3).forEach(g=>{const x=[STAGE[g.stage]||"",g.note].filter(Boolean).join(" — ");if(x)ab.append(el("small","","• "+date(g.at)+": "+x))});
+      c.append(ab)}
     const f=el("div","ft");const st=el("span","tag",oname(r.outcome));st.style.setProperty("--c",r.outcome==="resolved"?"#10b981":r.outcome==="unresolved"?"#ef4444":"#f59e0b");f.append(st);
     const bx=el("div","tg");const b=el("button","chip s",t("same")+" · "+num(r.conf));b.type="button";b.disabled=mine.includes(r.id);b.onclick=()=>confirmIt(r,b);
     const sb=el("button","chip s",t("share"));sb.type="button";sb.onclick=()=>shareCard(r);bx.append(b,sb);f.append(bx);c.append(f);cards.append(c)});
@@ -576,8 +604,26 @@ function startGeo(){if(GEO.p)return;$("#geoSt").textContent=t("geoLoading");
   GEO.p=(async()=>{try{await loadGeo()}catch{await new Promise(r=>setTimeout(r,1500));await loadGeo()}})().then(()=>{GEO.ok=true;$("#geoSt").textContent="";geoRefresh()}).catch(()=>{failGeo();$("#geoSt").textContent=t("geoFail")})}
 const addr=r=>[r.district,r.upazila,r.union,r.area].filter(Boolean).join(", ");
 const locL=r=>[[t("division"),trD(r.division,DIV)],[t("district"),r.district],[t("upazila"),r.upazila],[t("union"),r.union]].filter(x=>x[1]).map(x=>x[0]+": "+x[1]).join(" · ");
+let SITE={};
+const STAGE={verified:"✔ যাচাইকৃত",forwarded:"📨 কর্তৃপক্ষকে জানানো হয়েছে",inprogress:"🛠 ব্যবস্থা নেওয়া হচ্ছে",actioned:"✅ ব্যবস্থা গৃহীত"};
+function renderSite(){
+  const n=SITE.notice,nb=$("#notice");
+  if(n&&n.on&&n.text){nb.textContent=n.text;nb.className=n.level==="urgent"?"urgent":n.level==="warn"?"warn":"";nb.hidden=false}else nb.hidden=true;
+  const p=SITE.prices||{},items=p.items||[],box=$("#pxBox");box.textContent="";
+  if(!items.length){$("#pxMeta").textContent="বাজারদর শিগগিরই প্রকাশ করা হবে।"}
+  else{
+    $("#pxMeta").textContent=[p.source?"সূত্র: "+p.source:"","সর্বশেষ হালনাগাদ: "+new Date(p.updated).toLocaleDateString("bn-BD"),p.note||""].filter(Boolean).join(" · ");
+    const tb=el("table","px"),h=el("tr");["ব্র্যান্ড","সিলিন্ডার","দাম","পরিবর্তন"].forEach(x=>h.append(el("th","",x)));tb.append(h);
+    items.forEach(i=>{const r=el("tr");r.append(el("td","",i.brand+(i.note?" ("+i.note+")":"")),el("td","",i.size||"—"),el("td","",tk(i.price)));
+      const c=el("td","");if(i.prev&&i.prev!==i.price){const d=i.price-i.prev;c.className=d>0?"up":"dn";c.textContent=(d>0?"▲ +":"▼ −")+tk(Math.abs(d))}else c.textContent="—";
+      r.append(c);tb.append(r)});box.append(tb);
+  }
+  const ab=$("#advBox");ab.textContent="";const adv=SITE.advice||[];$("#advH").hidden=!adv.length;
+  adv.forEach(a=>{const c=el("div","advc");c.append(el("h4","",a.title),el("p","",a.text),el("small","",new Date(a.at).toLocaleDateString("bn-BD")));ab.append(c)});
+}
 async function load(){
-  try{const a=await (await fetch("/api/reports")).json();all=a.map(r=>({office:"অন্যান্য",amount:0,outcome:"pending",conf:0,type:"অন্যান্য",district:"",upazila:"",union:"",postOffice:"",postCode:"",...r}));render()}
+  try{const [a,sj]=await Promise.all([fetch("/api/reports").then(r=>r.json()),fetch("/api/site").then(r=>r.ok?r.json():{}).catch(()=>({}))]);SITE=sj||{};
+    all=a.map(r=>{const o={office:"অন্যান্য",amount:0,outcome:"pending",conf:0,type:"অন্যান্য",district:"",upazila:"",union:"",postOffice:"",postCode:"",...r};const u=(SITE.status||{})[r.id];if(u){if(u.outcome)o.outcome=u.outcome;o.stage=u.stage||"";o.adminNote=u.note||"";o.adminAt=u.at;o.log=u.log||[]}const ed=(SITE.edits||{})[r.id];if(ed)Object.assign(o,ed);return o});renderSite();render()}
   catch{$("#cards").textContent=t("fail")}
 }
 $("#lang").onclick=()=>{L=L==="bn"?"en":"bn";try{localStorage.setItem("lang",L)}catch{}lang()};
